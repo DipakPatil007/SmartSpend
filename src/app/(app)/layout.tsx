@@ -1,6 +1,7 @@
 
 "use client";
 
+import type { ReactNode } from 'react';
 import {
   SidebarProvider,
   Sidebar,
@@ -23,18 +24,18 @@ import Link from 'next/link';
 import { ThemeToggleButton } from '@/components/ThemeSwitcher';
 
 function AppLogo() {
-  const { state } = useSidebar(); // or open for full boolean
+  const { state } = useSidebar();
   const isCollapsed = state === 'collapsed';
   return <Logo collapsed={isCollapsed} />;
 }
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+function AppLayoutInternal({ children }: { children: ReactNode }) {
   const { userProfile } = useAppData();
   const { state: sidebarState } = useSidebar();
   const isSidebarCollapsed = sidebarState === 'collapsed';
 
   return (
-    <SidebarProvider defaultOpen={true}>
+    <>
       <Sidebar side="left" variant="sidebar" collapsible="icon" className="border-r">
         <SidebarHeader className="p-4">
           <AppLogo />
@@ -112,7 +113,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </SidebarInset>
-    </SidebarProvider>
+    </>
   );
 }
 
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <SidebarProvider defaultOpen={true}>
+      <AppLayoutInternal>{children}</AppLayoutInternal>
+    </SidebarProvider>
+  );
+}
