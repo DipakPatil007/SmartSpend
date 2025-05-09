@@ -1,4 +1,4 @@
-tsx
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -9,10 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAppData } from '@/contexts/AppDataContext';
 import type { Category, Transaction, Budget, ChartData } from '@/lib/types';
 import { getIconComponent } from '@/lib/constants';
-import { TrendingUp, TrendingDown, PiggyBank, ListChecks, CircleDollarSign, Loader2 } from 'lucide-react';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Cell } from 'recharts';
+import { TrendingDown, PiggyBank, ListChecks, CircleDollarSign, Loader2 } from 'lucide-react';
+import { Bar, BarChart, XAxis, YAxis, Cell } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { format, startOfMonth, endOfMonth, parseISO, isWithinInterval } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
@@ -22,9 +23,9 @@ export default function DashboardPage() {
   const { transactions, categories, budgets } = useAppData();
   const [isLoading, setIsLoading] = useState(true);
 
-  const [totalExpensesMonth, setTotalExpensesMonth] = useState<number | null>(null);
-  const [totalBudgetMonth, setTotalBudgetMonth] = useState<number | null>(null);
-  const [remainingBudgetMonth, setRemainingBudgetMonth] = useState<number | null>(null);
+  const [totalExpensesMonth, setTotalExpensesMonth] = useState<number>(0);
+  const [totalBudgetMonth, setTotalBudgetMonth] = useState<number>(0);
+  const [remainingBudgetMonth, setRemainingBudgetMonth] = useState<number>(0);
   const [spendingByCategoryChartData, setSpendingByCategoryChartData] = useState<ChartData[]>([]);
   const [chartConfig, setChartConfig] = useState<any>({});
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
@@ -47,14 +48,22 @@ export default function DashboardPage() {
 
     setRemainingBudgetMonth(calculatedTotalBudgetMonth - calculatedTotalExpensesMonth);
 
-    const calculatedSpendingByCategoryChartData: ChartData[] = categories.map(category => {
-      const categoryExpenses = monthlyTransactions
-        .filter(t => t.categoryId === category.id)
-        .reduce((sum, t) => sum + t.amount, 0);
-      return { name: category.name, value: categoryExpenses };
-    }).filter(c => c.value > 0)
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 5);
+    const categoryExpensesMap = new Map<string, number>();
+    monthlyTransactions.forEach(t => {
+        if (t.categoryId) {
+            categoryExpensesMap.set(t.categoryId, (categoryExpensesMap.get(t.categoryId) || 0) + t.amount);
+        }
+    });
+
+    const calculatedSpendingByCategoryChartData: ChartData[] = Array.from(categoryExpensesMap.entries())
+        .map(([categoryId, total]) => {
+            const category = categories.find(c => c.id === categoryId);
+            return { name: category?.name || 'Uncategorized', value: total };
+        })
+        .filter(c => c.value > 0)
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
+
     setSpendingByCategoryChartData(calculatedSpendingByCategoryChartData);
 
     const newChartConfig = calculatedSpendingByCategoryChartData.reduce((config, item, index) => {
@@ -108,8 +117,8 @@ export default function DashboardPage() {
             <TrendingDown className="h-5 w-5 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalExpensesMonth !== null ? formatCurrency(totalExpensesMonth) : <Skeleton className="h-8 w-32" />}</div>
-            <p className="text-xs text-muted-foreground">Compared to last month (N/A)</p>
+            <div className="text-2xl font-bold">{formatCurrency(totalExpensesMonth)}</div>
+            <p className="text-xs text-muted-foreground">Current month&apos;s spending</p>
           </CardContent>
         </Card>
 
@@ -119,11 +128,11 @@ export default function DashboardPage() {
             <PiggyBank className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalBudgetMonth !== null ? formatCurrency(totalBudgetMonth) : <Skeleton className="h-8 w-32" />}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalBudgetMonth)}</div>
             <p className="text-xs text-muted-foreground">
-              {totalBudgetMonth !== null && totalExpensesMonth !== null && totalBudgetMonth > 0 
+              {totalBudgetMonth > 0 
                 ? `${Math.round((totalExpensesMonth / totalBudgetMonth) * 100)}% spent` 
-                : totalBudgetMonth === 0 ? 'No budget set' : <Skeleton className="h-4 w-20" />}
+                : 'No budget set'}
             </p>
           </CardContent>
         </Card>
@@ -131,14 +140,14 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Remaining Budget (Month)</CardTitle>
-            <CircleDollarSign className={`h-5 w-5 ${remainingBudgetMonth !== null && remainingBudgetMonth >= 0 ? 'text-accent' : 'text-destructive'}`} />
+            <CircleDollarSign className={`h-5 w-5 ${remainingBudgetMonth >= 0 ? 'text-accent' : 'text-destructive'}`} />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${remainingBudgetMonth !== null && remainingBudgetMonth >= 0 ? 'text-accent-foreground' : 'text-destructive-foreground'}`}>
-              {remainingBudgetMonth !== null ? formatCurrency(remainingBudgetMonth) : <Skeleton className="h-8 w-32" />}
+            <div className={`text-2xl font-bold ${remainingBudgetMonth >= 0 ? 'text-accent-foreground' : 'text-destructive-foreground'}`}>
+              {formatCurrency(remainingBudgetMonth)}
             </div>
-            {totalBudgetMonth !== null && totalExpensesMonth !== null && totalBudgetMonth > 0 && (
-              <Progress value={(totalExpensesMonth / totalBudgetMonth) * 100} className="mt-2 h-2" indicatorClassName={remainingBudgetMonth !== null && remainingBudgetMonth < 0 ? "bg-destructive" : "bg-primary"}/>
+            {totalBudgetMonth > 0 && (
+              <Progress value={(totalExpensesMonth / totalBudgetMonth) * 100} className="mt-2 h-2" indicatorClassName={remainingBudgetMonth < 0 ? "bg-destructive" : "bg-primary"}/>
             )}
           </CardContent>
         </Card>
@@ -150,14 +159,14 @@ export default function DashboardPage() {
             <CardTitle>Spending by Category (Month)</CardTitle>
             <CardDescription>Top 5 spending categories this month.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px] p-2">
+          <CardContent className="h-[350px] p-2 pr-4">
             {spendingByCategoryChartData.length > 0 ? (
               <ChartContainer config={chartConfig} className="w-full h-full">
-                <BarChart accessibilityLayer data={spendingByCategoryChartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                  <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} interval={0} angle={-30} textAnchor="end" height={60} />
-                  <YAxis tickFormatter={(value) => `$${value / 1000}k`} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="value" radius={4}>
+                <BarChart accessibilityLayer data={spendingByCategoryChartData} layout="vertical" margin={{ top: 5, right: 10, left: 20, bottom: 5 }}>
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={100} className="text-xs" />
+                  <ChartTooltip content={<ChartTooltipContent />} cursor={{fill: 'hsl(var(--muted))'}} />
+                  <Bar dataKey="value" radius={4} layout="vertical">
                     {spendingByCategoryChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={chartConfig[entry.name]?.color || 'hsl(var(--primary))'} />
                     ))}
