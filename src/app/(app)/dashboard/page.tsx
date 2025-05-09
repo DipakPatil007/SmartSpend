@@ -1,5 +1,7 @@
+tsx
 "use client";
 
+import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -7,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAppData } from '@/contexts/AppDataContext';
 import type { Category, Transaction, Budget, ChartData } from '@/lib/types';
 import { getIconComponent } from '@/lib/constants';
-import { TrendingUp, TrendingDown, PiggyBank, ListChecks, CircleDollarSign } from 'lucide-react';
+import { TrendingUp, TrendingDown, PiggyBank, ListChecks, CircleDollarSign, Loader2 } from 'lucide-react';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Cell } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { format, startOfMonth, endOfMonth, parseISO, isWithinInterval } from 'date-fns';
@@ -18,39 +20,82 @@ const formatCurrency = (amount: number) => {
 
 export default function DashboardPage() {
   const { transactions, categories, budgets } = useAppData();
+  const [isLoading, setIsLoading] = useState(true);
 
-  const currentMonthStart = startOfMonth(new Date());
-  const currentMonthEnd = endOfMonth(new Date());
-
-  const monthlyTransactions = transactions.filter(t => 
-    isWithinInterval(parseISO(t.date), { start: currentMonthStart, end: currentMonthEnd })
-  );
-
-  const totalExpensesMonth = monthlyTransactions.reduce((sum, t) => sum + t.amount, 0);
-  
-  const totalBudgetMonth = budgets.reduce((sum, b) => sum + b.amount, 0);
-  const remainingBudgetMonth = totalBudgetMonth - totalExpensesMonth;
-
-  const spendingByCategoryChartData: ChartData[] = categories.map(category => {
-    const categoryExpenses = monthlyTransactions
-      .filter(t => t.categoryId === category.id)
-      .reduce((sum, t) => sum + t.amount, 0);
-    return { name: category.name, value: categoryExpenses };
-  }).filter(c => c.value > 0)
-  .sort((a, b) => b.value - a.value) // Sort by value descending
-  .slice(0, 5); // Top 5 categories
-
-  const chartConfig = spendingByCategoryChartData.reduce((config, item, index) => {
-    const colorVar = `--chart-${(index % 5) + 1}`;
-    config[item.name] = {
-      label: item.name,
-      color: `hsl(var(${colorVar}))`,
-    };
-    return config;
-  }, {} as any);
+  const [totalExpensesMonth, setTotalExpensesMonth] = useState<number | null>(null);
+  const [totalBudgetMonth, setTotalBudgetMonth] = useState<number | null>(null);
+  const [remainingBudgetMonth, setRemainingBudgetMonth] = useState<number | null>(null);
+  const [spendingByCategoryChartData, setSpendingByCategoryChartData] = useState<ChartData[]>([]);
+  const [chartConfig, setChartConfig] = useState<any>({});
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  const [monthlyBudgets, setMonthlyBudgets] = useState<Array<Budget & { spentAmount: number, progress: number, categoryName: string, IconComponent: React.ElementType }>>([]);
 
 
-  const recentTransactions = transactions.slice(0, 5);
+  useEffect(() => {
+    const currentMonthStart = startOfMonth(new Date());
+    const currentMonthEnd = endOfMonth(new Date());
+
+    const monthlyTransactions = transactions.filter(t => 
+      isWithinInterval(parseISO(t.date), { start: currentMonthStart, end: currentMonthEnd })
+    );
+
+    const calculatedTotalExpensesMonth = monthlyTransactions.reduce((sum, t) => sum + t.amount, 0);
+    setTotalExpensesMonth(calculatedTotalExpensesMonth);
+    
+    const calculatedTotalBudgetMonth = budgets.reduce((sum, b) => sum + b.amount, 0);
+    setTotalBudgetMonth(calculatedTotalBudgetMonth);
+
+    setRemainingBudgetMonth(calculatedTotalBudgetMonth - calculatedTotalExpensesMonth);
+
+    const calculatedSpendingByCategoryChartData: ChartData[] = categories.map(category => {
+      const categoryExpenses = monthlyTransactions
+        .filter(t => t.categoryId === category.id)
+        .reduce((sum, t) => sum + t.amount, 0);
+      return { name: category.name, value: categoryExpenses };
+    }).filter(c => c.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
+    setSpendingByCategoryChartData(calculatedSpendingByCategoryChartData);
+
+    const newChartConfig = calculatedSpendingByCategoryChartData.reduce((config, item, index) => {
+      const colorVar = `--chart-${(index % 5) + 1}`;
+      config[item.name] = {
+        label: item.name,
+        color: `hsl(var(${colorVar}))`,
+      };
+      return config;
+    }, {} as any);
+    setChartConfig(newChartConfig);
+
+    setRecentTransactions(transactions.slice(0, 5));
+
+    const calculatedMonthlyBudgets = budgets.map(budget => {
+      const category = categories.find(c => c.id === budget.categoryId);
+      const spentAmount = monthlyTransactions
+        .filter(t => t.categoryId === budget.categoryId)
+        .reduce((sum, t) => sum + t.amount, 0);
+      const progress = budget.amount > 0 ? Math.min((spentAmount / budget.amount) * 100, 100) : 0;
+      const IconComponent = category ? getIconComponent(category.icon) : PiggyBank;
+      return {
+        ...budget,
+        spentAmount,
+        progress,
+        categoryName: category?.name || 'Uncategorized Budget',
+        IconComponent
+      };
+    });
+    setMonthlyBudgets(calculatedMonthlyBudgets);
+
+    setIsLoading(false);
+  }, [transactions, categories, budgets]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -63,7 +108,7 @@ export default function DashboardPage() {
             <TrendingDown className="h-5 w-5 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalExpensesMonth)}</div>
+            <div className="text-2xl font-bold">{totalExpensesMonth !== null ? formatCurrency(totalExpensesMonth) : <Skeleton className="h-8 w-32" />}</div>
             <p className="text-xs text-muted-foreground">Compared to last month (N/A)</p>
           </CardContent>
         </Card>
@@ -74,9 +119,11 @@ export default function DashboardPage() {
             <PiggyBank className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalBudgetMonth)}</div>
+            <div className="text-2xl font-bold">{totalBudgetMonth !== null ? formatCurrency(totalBudgetMonth) : <Skeleton className="h-8 w-32" />}</div>
             <p className="text-xs text-muted-foreground">
-              {totalBudgetMonth > 0 ? `${Math.round((totalExpensesMonth / totalBudgetMonth) * 100)}% spent` : 'No budget set'}
+              {totalBudgetMonth !== null && totalExpensesMonth !== null && totalBudgetMonth > 0 
+                ? `${Math.round((totalExpensesMonth / totalBudgetMonth) * 100)}% spent` 
+                : totalBudgetMonth === 0 ? 'No budget set' : <Skeleton className="h-4 w-20" />}
             </p>
           </CardContent>
         </Card>
@@ -84,14 +131,14 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Remaining Budget (Month)</CardTitle>
-            <CircleDollarSign className={`h-5 w-5 ${remainingBudgetMonth >= 0 ? 'text-accent' : 'text-destructive'}`} />
+            <CircleDollarSign className={`h-5 w-5 ${remainingBudgetMonth !== null && remainingBudgetMonth >= 0 ? 'text-accent' : 'text-destructive'}`} />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${remainingBudgetMonth >= 0 ? 'text-accent-foreground' : 'text-destructive-foreground'}`}>
-              {formatCurrency(remainingBudgetMonth)}
+            <div className={`text-2xl font-bold ${remainingBudgetMonth !== null && remainingBudgetMonth >= 0 ? 'text-accent-foreground' : 'text-destructive-foreground'}`}>
+              {remainingBudgetMonth !== null ? formatCurrency(remainingBudgetMonth) : <Skeleton className="h-8 w-32" />}
             </div>
-            {totalBudgetMonth > 0 && (
-              <Progress value={(totalExpensesMonth / totalBudgetMonth) * 100} className="mt-2 h-2" indicatorClassName={remainingBudgetMonth < 0 ? "bg-destructive" : "bg-primary"}/>
+            {totalBudgetMonth !== null && totalExpensesMonth !== null && totalBudgetMonth > 0 && (
+              <Progress value={(totalExpensesMonth / totalBudgetMonth) * 100} className="mt-2 h-2" indicatorClassName={remainingBudgetMonth !== null && remainingBudgetMonth < 0 ? "bg-destructive" : "bg-primary"}/>
             )}
           </CardContent>
         </Card>
@@ -172,29 +219,23 @@ export default function DashboardPage() {
           <CardDescription>Overview of your current budget goals for the month.</CardDescription>
         </CardHeader>
         <CardContent>
-          {budgets.length > 0 ? (
+          {monthlyBudgets.length > 0 ? (
             <div className="space-y-4">
-              {budgets.map(budget => {
-                const category = categories.find(c => c.id === budget.categoryId);
-                const spentAmount = monthlyTransactions
-                  .filter(t => t.categoryId === budget.categoryId)
-                  .reduce((sum, t) => sum + t.amount, 0);
-                const progress = budget.amount > 0 ? Math.min((spentAmount / budget.amount) * 100, 100) : 0;
-                const Icon = category ? getIconComponent(category.icon) : PiggyBank;
-
+              {monthlyBudgets.map(budget => {
+                const { IconComponent, categoryName, spentAmount, amount, progress } = budget;
                 return (
                   <div key={budget.id}>
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
-                        {Icon && <Icon className="h-5 w-5 text-primary" />}
-                        <span className="font-medium">{category?.name || 'Uncategorized Budget'}</span>
+                        {IconComponent && <IconComponent className="h-5 w-5 text-primary" />}
+                        <span className="font-medium">{categoryName}</span>
                       </div>
                       <span className="text-sm text-muted-foreground">
-                        {formatCurrency(spentAmount)} / {formatCurrency(budget.amount)}
+                        {formatCurrency(spentAmount)} / {formatCurrency(amount)}
                       </span>
                     </div>
                     <Progress value={progress} className="h-3" indicatorClassName={progress > 100 ? "bg-destructive" : "bg-primary"} />
-                    {progress > 100 && <p className="text-xs text-destructive mt-1">Overspent by {formatCurrency(spentAmount - budget.amount)}</p>}
+                    {progress > 100 && <p className="text-xs text-destructive mt-1">Overspent by {formatCurrency(spentAmount - amount)}</p>}
                   </div>
                 );
               })}
@@ -207,4 +248,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
