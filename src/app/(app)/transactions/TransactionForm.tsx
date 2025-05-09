@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,6 +28,7 @@ import { CalendarIcon, Sparkles, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 
+const NONE_CATEGORY_VALUE = "_NONE_";
 
 const transactionFormSchema = z.object({
   description: z.string().min(2, "Description must be at least 2 characters.").max(100, "Description too long."),
@@ -64,10 +66,10 @@ export function TransactionForm({ open, onOpenChange, transactionToEdit }: Trans
         description: transactionToEdit.description,
         amount: transactionToEdit.amount,
         date: parseISO(transactionToEdit.date),
-        categoryId: transactionToEdit.categoryId,
+        categoryId: transactionToEdit.categoryId === null ? NONE_CATEGORY_VALUE : transactionToEdit.categoryId,
       });
     } else {
-      form.reset({ description: "", amount: 0, date: new Date(), categoryId: null });
+      form.reset({ description: "", amount: 0, date: new Date(), categoryId: NONE_CATEGORY_VALUE });
     }
   }, [transactionToEdit, form, open]);
 
@@ -97,7 +99,8 @@ export function TransactionForm({ open, onOpenChange, transactionToEdit }: Trans
       } else if (suggestedCategoryName && suggestedCategoryName.toLowerCase() !== "other") {
          toast({ title: "Suggestion Made", description: `AI suggested: "${suggestedCategoryName}". Could not match to an existing category.`});
       } else {
-        toast({ title: "No specific category found", description: "AI suggested 'Other' or could not determine a category."});
+        form.setValue("categoryId", NONE_CATEGORY_VALUE, { shouldValidate: true });
+        toast({ title: "No specific category found", description: "AI suggested 'Other' or could not determine a category. Defaulting to 'No Category'."});
       }
     } catch (error) {
       console.error("AI Category Suggestion Error:", error);
@@ -110,6 +113,7 @@ export function TransactionForm({ open, onOpenChange, transactionToEdit }: Trans
   const onSubmit = (data: TransactionFormValues) => {
     const transactionData = {
       ...data,
+      categoryId: data.categoryId === NONE_CATEGORY_VALUE ? null : data.categoryId,
       date: format(data.date, "yyyy-MM-dd"), // Store date as ISO string
     };
     try {
@@ -121,7 +125,7 @@ export function TransactionForm({ open, onOpenChange, transactionToEdit }: Trans
         toast({ title: "Transaction Added", description: `Transaction for ${data.description} added.` });
       }
       onOpenChange(false);
-      form.reset();
+      form.reset({ description: "", amount: 0, date: new Date(), categoryId: NONE_CATEGORY_VALUE });
     } catch (error) {
        toast({ title: "Error", description: "Could not save transaction.", variant: "destructive" });
        console.error("Error saving transaction:", error);
@@ -129,7 +133,7 @@ export function TransactionForm({ open, onOpenChange, transactionToEdit }: Trans
   };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => { onOpenChange(isOpen); if (!isOpen) form.reset(); }}>
+    <Dialog open={open} onOpenChange={(isOpen) => { onOpenChange(isOpen); if (!isOpen) form.reset({ description: "", amount: 0, date: new Date(), categoryId: NONE_CATEGORY_VALUE }); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{transactionToEdit ? "Edit Transaction" : "Add New Transaction"}</DialogTitle>
@@ -204,14 +208,18 @@ export function TransactionForm({ open, onOpenChange, transactionToEdit }: Trans
                 <FormItem>
                   <FormLabel>Category</FormLabel>
                   <div className="flex items-center gap-2">
-                    <Select onValueChange={field.onChange} value={field.value || ""} defaultValue={field.value || ""}>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value === null ? NONE_CATEGORY_VALUE : field.value} 
+                      defaultValue={field.value === null ? NONE_CATEGORY_VALUE : field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">No Category</SelectItem>
+                        <SelectItem value={NONE_CATEGORY_VALUE}>No Category</SelectItem>
                         {categories.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.name}
@@ -249,3 +257,4 @@ export function TransactionForm({ open, onOpenChange, transactionToEdit }: Trans
     </Dialog>
   );
 }
+
