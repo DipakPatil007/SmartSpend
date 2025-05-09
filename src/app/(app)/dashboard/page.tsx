@@ -8,7 +8,7 @@ import { useAppData } from '@/contexts/AppDataContext';
 import type { Category, Transaction, Budget, ChartData } from '@/lib/types';
 import { getIconComponent } from '@/lib/constants';
 import { TrendingUp, TrendingDown, PiggyBank, ListChecks, CircleDollarSign } from 'lucide-react';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip } from 'recharts';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Cell } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { format, startOfMonth, endOfMonth, parseISO, isWithinInterval } from 'date-fns';
 
@@ -40,10 +40,8 @@ export default function DashboardPage() {
   .sort((a, b) => b.value - a.value) // Sort by value descending
   .slice(0, 5); // Top 5 categories
 
-  const chartConfig = spendingByCategoryChartData.reduce((config, item) => {
-    // Use a simple color generation or predefined palette for dynamic items
-    // For now, let's use a placeholder color from CSS vars
-    const colorVar = `--chart-${(spendingByCategoryChartData.indexOf(item) % 5) + 1}`;
+  const chartConfig = spendingByCategoryChartData.reduce((config, item, index) => {
+    const colorVar = `--chart-${(index % 5) + 1}`;
     config[item.name] = {
       label: item.name,
       color: `hsl(var(${colorVar}))`,
@@ -113,7 +111,9 @@ export default function DashboardPage() {
                   <YAxis tickFormatter={(value) => `$${value / 1000}k`} />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar dataKey="value" radius={4}>
-                     {/* Removed individual fill - relies on ChartContainer config or default recharts behavior */}
+                    {spendingByCategoryChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={chartConfig[entry.name]?.color || 'hsl(var(--primary))'} />
+                    ))}
                   </Bar>
                 </BarChart>
               </ChartContainer>
@@ -207,3 +207,4 @@ export default function DashboardPage() {
     </>
   );
 }
+
