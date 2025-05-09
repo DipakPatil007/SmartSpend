@@ -20,6 +20,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAppData } from '@/contexts/AppDataContext';
 import Link from 'next/link';
+import { ThemeToggleButton } from '@/components/ThemeSwitcher';
 
 function AppLogo() {
   const { state } = useSidebar(); // or open for full boolean
@@ -29,6 +30,8 @@ function AppLogo() {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { userProfile } = useAppData();
+  const { state: sidebarState } = useSidebar();
+  const isSidebarCollapsed = sidebarState === 'collapsed';
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -64,18 +67,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
-        <SidebarFooter className="p-2">
+        <SidebarFooter className="p-2 flex flex-col gap-2">
+          <ThemeToggleButton />
            <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="w-full justify-start p-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:aspect-square">
+               <Button 
+                variant="ghost" 
+                className={isSidebarCollapsed ? 
+                  "w-auto aspect-square p-0 justify-center" : 
+                  "w-full justify-start p-2"
+                }
+              >
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={userProfile.avatarUrl || undefined} alt={userProfile.name} data-ai-hint="person face" />
                   <AvatarFallback>{userProfile.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
                 </Avatar>
-                <span className="ml-2 group-data-[collapsible=icon]:hidden">{userProfile.name}</span>
+                {!isSidebarCollapsed && <span className="ml-2 truncate">{userProfile.name}</span>}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent side="top" align="start" className="w-56">
+            <DropdownMenuContent side="top" align={isSidebarCollapsed ? "center" : "start"} className="w-56">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
@@ -105,3 +115,4 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
+
