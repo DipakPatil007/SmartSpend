@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -17,6 +18,8 @@ import { LayoutDashboard, ArrowLeftRight, Tags, Target, UserCircle, Settings, Lo
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useAppData } from '@/contexts/AppDataContext';
+import Link from 'next/link';
 
 function AppLogo() {
   const { state } = useSidebar(); // or open for full boolean
@@ -25,6 +28,8 @@ function AppLogo() {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const { userProfile } = useAppData();
+
   return (
     <SidebarProvider defaultOpen={true}>
       <Sidebar side="left" variant="sidebar" collapsible="icon" className="border-r">
@@ -64,18 +69,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="w-full justify-start p-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:aspect-square">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="https://picsum.photos/40/40" alt="User Avatar" data-ai-hint="person face" />
-                  <AvatarFallback>U</AvatarFallback>
+                  <AvatarImage src={userProfile.avatarUrl || undefined} alt={userProfile.name} data-ai-hint="person face" />
+                  <AvatarFallback>{userProfile.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
                 </Avatar>
-                <span className="ml-2 group-data-[collapsible=icon]:hidden">User Menu</span>
+                <span className="ml-2 group-data-[collapsible=icon]:hidden">{userProfile.name}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="top" align="start" className="w-56">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <UserCircle className="mr-2 h-4 w-4" />
-                <span>Profile</span>
+              <DropdownMenuItem asChild>
+                <Link href="/profile">
+                  <UserCircle className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Settings className="mr-2 h-4 w-4" />

@@ -24,3 +24,10 @@ export interface ChartData {
   value: number;
   fill?: string; // Optional fill color for charts
 }
+
+export interface UserProfile {
+  name: string;
+  email: string;
+  bio?: string;
+  avatarUrl?: string;
+}
