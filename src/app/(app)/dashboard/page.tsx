@@ -13,7 +13,6 @@ import { TrendingDown, PiggyBank, ListChecks, CircleDollarSign, Loader2 } from '
 import { Bar, BarChart, XAxis, YAxis, Cell } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { format, startOfMonth, endOfMonth, parseISO, isWithinInterval } from 'date-fns';
-import { Skeleton } from '@/components/ui/skeleton';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
@@ -33,6 +32,7 @@ export default function DashboardPage() {
 
 
   useEffect(() => {
+    setIsLoading(true); // Set loading to true at the start of the effect
     const currentMonthStart = startOfMonth(new Date());
     const currentMonthEnd = endOfMonth(new Date());
 
@@ -58,23 +58,25 @@ export default function DashboardPage() {
     const calculatedSpendingByCategoryChartData: ChartData[] = Array.from(categoryExpensesMap.entries())
         .map(([categoryId, total]) => {
             const category = categories.find(c => c.id === categoryId);
-            return { name: category?.name || 'Uncategorized', value: total };
+            return { name: category?.name || 'Uncategorized', value: total, fill: '' }; // fill will be set by chartConfig
         })
         .filter(c => c.value > 0)
         .sort((a, b) => b.value - a.value)
         .slice(0, 5);
 
-    setSpendingByCategoryChartData(calculatedSpendingByCategoryChartData);
-
     const newChartConfig = calculatedSpendingByCategoryChartData.reduce((config, item, index) => {
-      const colorVar = `--chart-${(index % 5) + 1}`;
+      const colorVar = `--chart-${(index % 5) + 1}`; // Use Tailwind CSS vars
       config[item.name] = {
         label: item.name,
         color: `hsl(var(${colorVar}))`,
       };
+      item.fill = `hsl(var(${colorVar}))`; // Assign fill color for direct use in Bar data
       return config;
     }, {} as any);
+    
     setChartConfig(newChartConfig);
+    setSpendingByCategoryChartData(calculatedSpendingByCategoryChartData);
+
 
     setRecentTransactions(transactions.slice(0, 5));
 
@@ -130,9 +132,9 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(totalBudgetMonth)}</div>
             <p className="text-xs text-muted-foreground">
-              {totalBudgetMonth > 0 
+              {totalBudgetMonth > 0 && totalExpensesMonth > 0
                 ? `${Math.round((totalExpensesMonth / totalBudgetMonth) * 100)}% spent` 
-                : 'No budget set'}
+                : totalBudgetMonth === 0 ? 'No budget set' : '0% spent'}
             </p>
           </CardContent>
         </Card>
@@ -143,7 +145,7 @@ export default function DashboardPage() {
             <CircleDollarSign className={`h-5 w-5 ${remainingBudgetMonth >= 0 ? 'text-accent' : 'text-destructive'}`} />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${remainingBudgetMonth >= 0 ? 'text-accent-foreground' : 'text-destructive-foreground'}`}>
+            <div className={`text-2xl font-bold ${remainingBudgetMonth >= 0 ? 'text-accent' : 'text-destructive'}`}>
               {formatCurrency(remainingBudgetMonth)}
             </div>
             {totalBudgetMonth > 0 && (
@@ -164,11 +166,11 @@ export default function DashboardPage() {
               <ChartContainer config={chartConfig} className="w-full h-full">
                 <BarChart accessibilityLayer data={spendingByCategoryChartData} layout="vertical" margin={{ top: 5, right: 10, left: 20, bottom: 5 }}>
                   <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={100} className="text-xs" />
+                  <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={100} className="text-xs fill-foreground" />
                   <ChartTooltip content={<ChartTooltipContent />} cursor={{fill: 'hsl(var(--muted))'}} />
                   <Bar dataKey="value" radius={4} layout="vertical">
                     {spendingByCategoryChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={chartConfig[entry.name]?.color || 'hsl(var(--primary))'} />
+                      <Cell key={`cell-${index}`} fill={entry.fill || chartConfig[entry.name]?.color || 'hsl(var(--primary))'} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -257,3 +259,4 @@ export default function DashboardPage() {
     </>
   );
 }
+
