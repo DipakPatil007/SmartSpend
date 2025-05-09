@@ -1,0 +1,66 @@
+name: Deploy Next.js to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # Or your default branch (e.g., master)
+  workflow_dispatch: # Allows manual triggering of the workflow
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Specify your project's Node.js version
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js app
+        # The GITHUB_REPOSITORY environment variable is automatically available to the build process.
+        # next.config.js uses this to set basePath and assetPrefix.
+        run: npm run build
+        env:
+          # Ensuring GITHUB_ACTIONS is true for next.config.js logic
+          GITHUB_ACTIONS: 'true'
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+        # This action sets up the GitHub Pages environment for deployment.
+        # For custom domains, you might need to configure CNAME here or in repo settings.
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Path to the directory containing the static assets from `next export`
+          path: ./out
+
+  deploy:
+    needs: build # This job depends on the 'build' job completing successfully
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }} # The URL where the site will be deployed
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        # This action deploys the artifact uploaded in the 'build' job to GitHub Pages.

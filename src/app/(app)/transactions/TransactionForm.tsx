@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { useAppData } from "@/contexts/AppDataContext";
 import type { Transaction, Category } from "@/lib/types";
-import { categorizeTransaction } from "@/ai/flows/categorize-transaction";
+// import { categorizeTransaction } from "@/ai/flows/categorize-transaction"; // TODO: AI feature disabled for static export
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
@@ -28,13 +27,13 @@ import { CalendarIcon, Sparkles, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 
-const NONE_CATEGORY_VALUE = "_NONE_";
+const NONE_CATEGORY_VALUE = "_NONE_"; // Ensure this value is not an empty string
 
 const transactionFormSchema = z.object({
   description: z.string().min(2, "Description must be at least 2 characters.").max(100, "Description too long."),
   amount: z.coerce.number().positive("Amount must be a positive number."),
   date: z.date({ required_error: "Please select a date." }),
-  categoryId: z.string().nullable(),
+  categoryId: z.string().nullable(), // Allow null, will be mapped to NONE_CATEGORY_VALUE for the select
 });
 
 type TransactionFormValues = z.infer<typeof transactionFormSchema>;
@@ -48,7 +47,7 @@ interface TransactionFormProps {
 export function TransactionForm({ open, onOpenChange, transactionToEdit }: TransactionFormProps) {
   const { categories, addTransaction, updateTransaction } = useAppData();
   const { toast } = useToast();
-  const [isSuggestingCategory, setIsSuggestingCategory] = useState(false);
+  // const [isSuggestingCategory, setIsSuggestingCategory] = useState(false); // TODO: AI feature disabled for static export
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),
@@ -56,7 +55,7 @@ export function TransactionForm({ open, onOpenChange, transactionToEdit }: Trans
       description: "",
       amount: 0,
       date: new Date(),
-      categoryId: null,
+      categoryId: null, // Default to null, which maps to NONE_CATEGORY_VALUE
     },
   });
 
@@ -73,6 +72,8 @@ export function TransactionForm({ open, onOpenChange, transactionToEdit }: Trans
     }
   }, [transactionToEdit, form, open]);
 
+  /*
+  // TODO: AI Category Suggestion feature is disabled for static export as it requires a server environment.
   const handleSuggestCategory = async () => {
     const description = form.getValues("description");
     if (!description.trim()) {
@@ -109,6 +110,7 @@ export function TransactionForm({ open, onOpenChange, transactionToEdit }: Trans
       setIsSuggestingCategory(false);
     }
   };
+  */
 
   const onSubmit = (data: TransactionFormValues) => {
     const transactionData = {
@@ -209,9 +211,9 @@ export function TransactionForm({ open, onOpenChange, transactionToEdit }: Trans
                   <FormLabel>Category</FormLabel>
                   <div className="flex items-center gap-2">
                     <Select 
-                      onValueChange={field.onChange} 
+                      onValueChange={(value) => field.onChange(value === NONE_CATEGORY_VALUE ? null : value)} 
                       value={field.value === null ? NONE_CATEGORY_VALUE : field.value} 
-                      defaultValue={field.value === null ? NONE_CATEGORY_VALUE : field.value}
+                      defaultValue={NONE_CATEGORY_VALUE} // Default to "No Category"
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -227,6 +229,7 @@ export function TransactionForm({ open, onOpenChange, transactionToEdit }: Trans
                         ))}
                       </SelectContent>
                     </Select>
+                    {/* TODO: AI Category Suggestion Button disabled for static export
                     <Button
                       type="button"
                       variant="outline"
@@ -238,6 +241,7 @@ export function TransactionForm({ open, onOpenChange, transactionToEdit }: Trans
                     >
                       {isSuggestingCategory ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                     </Button>
+                    */}
                   </div>
                   <FormMessage />
                 </FormItem>
@@ -257,4 +261,3 @@ export function TransactionForm({ open, onOpenChange, transactionToEdit }: Trans
     </Dialog>
   );
 }
-
