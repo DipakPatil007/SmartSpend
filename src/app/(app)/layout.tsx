@@ -36,7 +36,7 @@ function AppLayoutInternal({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <Sidebar side="left" variant="sidebar" collapsible="icon" className="border-r">
+      <Sidebar side="left" variant="sidebar" collapsible="icon" className="border-r" suppressHydrationWarning>
         <SidebarHeader className="p-4">
           <AppLogo />
         </SidebarHeader>
@@ -70,12 +70,12 @@ function AppLayoutInternal({ children }: { children: ReactNode }) {
         </SidebarContent>
         <SidebarFooter className="p-2 flex flex-col gap-2">
           <ThemeToggleButton />
-           <DropdownMenu>
+          <DropdownMenu>
             <DropdownMenuTrigger asChild>
-               <Button 
-                variant="ghost" 
-                className={isSidebarCollapsed ? 
-                  "w-auto aspect-square p-0 justify-center" : 
+              <Button
+                variant="ghost"
+                className={isSidebarCollapsed ?
+                  "w-auto aspect-square p-0 justify-center" :
                   "w-full justify-start p-2"
                 }
               >

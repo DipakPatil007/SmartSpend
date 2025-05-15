@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useAppData } from '@/contexts/AppDataContext';
 import type { Category } from '@/lib/types';
 import { CategoryForm } from './CategoryForm';
-import { PlusCircle, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit2, Trash2, Tags } from 'lucide-react';
 import { getIconComponent } from '@/lib/constants';
 import { useToast } from "@/hooks/use-toast";
 
@@ -43,7 +43,7 @@ export default function CategoriesPage() {
       setCategoryToDelete(null);
     }
   };
-  
+
   return (
     <>
       <PageHeader title="Spending Categories" description="Manage your spending categories.">
